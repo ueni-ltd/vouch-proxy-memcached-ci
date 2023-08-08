@@ -1,0 +1,67 @@
+name: build
+on:
+  push:
+    branches:
+    - master
+
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.DEVBOT_TOKEN }}
+        submodules: recursive
+
+    - name: docker build
+      uses: docker://harbor.ueni.xyz/actions/kaniko
+      with:
+        registry: harbor.ueni.xyz
+        tag: ${{ github.sha }}
+        username: ${{ secrets.HARBOR_USERNAME }}
+        password: ${{ secrets.HARBOR_PASSWORD }}
+        cache: true
+        share_env_caches: true
+
+    - name: notify
+      uses: ueni-ltd/google-chat-notification@master
+      with:
+        name: Build
+        url: ${{ secrets.BUILD_NOTIFICATION_WEBHOOK }}
+        status: ${{ job.status }}
+      if: always()
+
+  deploy:
+    runs-on: self-hosted
+    needs: build
+    steps:
+
+    - name: get manifests
+      uses: actions/checkout@v3
+      with:
+        repository: ueni-ltd/devops
+        path: devops
+        token: ${{ secrets.DEVBOT_TOKEN }}
+        ref: master
+
+    - name: update manifests
+      uses: docker://harbor.ueni.xyz/actions/update-manifests
+      with:
+        deploy_repo_path: devops/deploy
+        namespace: sso-ha-ueni-xyz
+        service_name: sso-ha
+
+    - name: sync deployment (ueni.xyz)
+      uses: docker://harbor.ueni.xyz/actions/argocd
+      env:
+        ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+      with:
+        app_name: sso-ha-ueni-xyz-prd
+
+    - name: notify
+      uses: ueni-ltd/google-chat-notification@master
+      with:
+        name: Deploy
+        url: ${{ secrets.BUILD_NOTIFICATION_WEBHOOK }}
+        status: ${{ job.status }}
+      if: always()
