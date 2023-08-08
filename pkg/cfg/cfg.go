@@ -98,6 +98,16 @@ type Config struct {
 		MaxAge int    `mapstructure:"maxage"`
 		Key    string `mapstructure:"key"`
 	}
+	SessStore struct {
+		Backend string `mapstructure:"backend"`
+		Memcached struct {
+			Address string `mapstructure:"address"`
+			KeyPrefix string `mapstructure:"key_prefix"`
+			// to be implemented: support ASCII or binary protocol selection
+			// default and the only currently implemented: ASCII
+			// Protocol string `mapstructure:"protocol"`
+		}
+	}
 	TestURL            string   `mapstructure:"test_url"`
 	TestURLs           []string `mapstructure:"test_urls"`
 	Testing            bool     `mapstructure:"testing"`

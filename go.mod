@@ -3,6 +3,8 @@ module github.com/vouch/vouch-proxy
 go 1.19
 
 require (
+	github.com/bradfitz/gomemcache v0.0.0-20230611145640-acc696258285
+	github.com/bradleypeabody/gorilla-sessions-memcache v0.0.0-20181103040241-659414f458e1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/go-cmp v0.5.9
 	github.com/gorilla/sessions v1.2.1

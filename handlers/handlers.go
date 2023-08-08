@@ -14,6 +14,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/sessions"
+	"github.com/bradfitz/gomemcache/memcache"
+	gsm "github.com/bradleypeabody/gorilla-sessions-memcache"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 
@@ -44,7 +46,8 @@ const (
 )
 
 var (
-	sessstore *sessions.CookieStore
+	sessstore_old *sessions.CookieStore
+	sessstore *gsm.MemcacheStore
 	log       *zap.SugaredLogger
 	fastlog   *zap.Logger
 	provider  Provider
@@ -55,7 +58,21 @@ func Configure() {
 	log = cfg.Logging.Logger
 	fastlog = cfg.Logging.FastLogger
 	// http://www.gorillatoolkit.org/pkg/sessions
-	sessstore = sessions.NewCookieStore([]byte(cfg.Cfg.Session.Key))
+
+	if cfg.Cfg.SessStore.Backend == "memcached" && cfg.Cfg.SessStore.Memcached.Address != "" {
+		memcacheClient := gsm.NewGoMemcacher(memcache.New(cfg.Cfg.SessStore.Memcached.Address))
+		key_prefix := "vouch_"
+		if cfg.Cfg.SessStore.Memcached.KeyPrefix != "" {
+			key_prefix = cfg.Cfg.SessStore.Memcached.KeyPrefix
+		}
+		sessstore = gsm.NewMemcacherStore(memcacheClient, key_prefix, []byte(cfg.Cfg.Session.Key))
+		log.Infow("Using shared session store backend: "+cfg.Cfg.SessStore.Backend,
+			"address: "+cfg.Cfg.SessStore.Memcached.Address);
+		sessstore.Logging = 1
+	} //else {
+//		sessstore = sessions.NewCookieStore([]byte(cfg.Cfg.Session.Key))
+//		log.Infow("Using internal memory session store")
+//	}
 	sessstore.Options.HttpOnly = cfg.Cfg.Cookie.HTTPOnly
 	sessstore.Options.Secure = cfg.Cfg.Cookie.Secure
 	sessstore.Options.SameSite = cookie.SameSite()
